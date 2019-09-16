@@ -8,9 +8,9 @@ import java.util.stream.IntStream;
  * Closest_Parallel_Pair
  */
 public class Closest_Parallel_Pair {
-    public static final boolean DEBUG = true;
-    public static final int BRUTEFORCE_LIMIT = 20;
-    public static final ExecutorService service = Executors.newWorkStealingPool(2);
+    public static final boolean DEBUG = false;
+    public static final int BRUTEFORCE_LIMIT = 3;
+    public static final ExecutorService service = Executors.newWorkStealingPool();
 
     public static void main(String[] args) throws InterruptedException, ExecutionException {
         Kattio io = new Kattio(System.in, System.out);
@@ -19,9 +19,9 @@ public class Closest_Parallel_Pair {
             if (n == 0)
                 break;
 
-            Point[] xSorted = SortByX(GetPoints(io, n));
+            List<Point> xSorted = SortByX(GetPoints(io, n));
             long startTime = System.nanoTime();
-            Tuple<Float,Pair> closestPoints = GetClosestPoints(xSorted);
+            Tuple<Float,Pair> closestPoints = RecurseX(xSorted);
             Point p1 = closestPoints.y.P1;
             Point p2 = closestPoints.y.P2;
 
@@ -39,38 +39,30 @@ public class Closest_Parallel_Pair {
         io.close();
     }
 
-    public static Tuple<Float,Pair> GetClosestPoints(Point[] points)
+    public static Tuple<Float,Pair> RecurseX(List<Point> points)
             throws InterruptedException, ExecutionException {
-        if (points.length <= BRUTEFORCE_LIMIT)
-            return Bruteforce(points);
-
-        return RecurseX(points);
-    }
-
-    public static Tuple<Float,Pair> RecurseX(Point[] points)
-            throws InterruptedException, ExecutionException {
-        int size = points.length;
+        int size = points.size();
         if (size <= BRUTEFORCE_LIMIT)
             return Bruteforce(points);
 
-        Point midPoint = points[(size / 2)];
-
-        Future<Tuple<Float, Pair>> leftClosestFuture = service.submit(new Callable<Tuple<Float, Pair>>() {
+        Point midPoint = points.get((size / 2));
+    
+        Future<Tuple<Float, Pair>> f1 = service.submit(new Callable<Tuple<Float, Pair>>() {
             public Tuple<Float, Pair> call() throws Exception {
-                Point[] left = Arrays.copyOfRange(points, 0, ((size + 1) / 2));
+                List<Point> left = points.subList(0, ((size + 1) / 2));
                 return RecurseX(left);
             }
         });
 
-        Future<Tuple<Float, Pair>> rightClosestFuture = service.submit(new Callable<Tuple<Float, Pair>>() {
+        Future<Tuple<Float, Pair>> f2 = service.submit(new Callable<Tuple<Float, Pair>>() {
             public Tuple<Float, Pair> call() throws Exception {
-                Point[] right = Arrays.copyOfRange(points, ((size + 1) / 2), size);
+                List<Point> right = points.subList(((size + 1) / 2), size);
                 return RecurseX(right);
             }
         });
-
-        Tuple<Float, Pair> leftClosest = leftClosestFuture.get();
-        Tuple<Float, Pair> rightClosest = rightClosestFuture.get();
+        
+        Tuple<Float, Pair> leftClosest = f1.get();
+        Tuple<Float, Pair> rightClosest = f2.get();
         Tuple<Float, Pair> best;
 
         if (leftClosest.x < rightClosest.x) {
@@ -90,25 +82,25 @@ public class Closest_Parallel_Pair {
         }
     }
 
-    public static Tuple<Float,Pair> CompareStrip(Point[] points, float d, float mid) {
+    public static Tuple<Float,Pair> CompareStrip(List<Point> points, float d, float mid) {
         Predicate<Point> closeToMid = p -> Math.abs(p.x - mid) < d;
-        Point[] ySorted = Arrays.stream(points).filter(closeToMid)
-                .sorted((p1, p2) -> Float.compare(p1.y, p2.y)).toArray(Point[]::new);
+        List<Point> ySorted = points.stream().filter(closeToMid)
+                .sorted((p1, p2) -> Float.compare(p1.y, p2.y)).collect(Collectors.toList());
         float min = Float.MAX_VALUE;
-        int size = ySorted.length;
+        int size = ySorted.size();
         Pair minPoints = null;
         if (size < 2)
             return null;
         else if (size == 2) {
-            Point p1 = ySorted[0];
-            Point p2 = ySorted[1];
+            Point p1 = ySorted.get(0);
+            Point p2 = ySorted.get(1);
             min = p1.Dist(p2);
             minPoints = new Pair(p1, p2);
         } else {
             for (int i = 0; i < size; i++) {
-                Point p1 = ySorted[i];
-                for (int j = i + 1; j < Math.min(size, 4); j++) {
-                    Point p2 = ySorted[j];
+                Point p1 = ySorted.get(i);
+                for (int j = i + 1; j < size; j++) {
+                    Point p2 = ySorted.get(j);
                     float dist = p1.Dist(p2);
                     if (dist < min) {
                         min = dist;
@@ -120,16 +112,16 @@ public class Closest_Parallel_Pair {
         return new Tuple<Float,Pair>(min, minPoints);
     }
 
-    public static Tuple<Float,Pair> Bruteforce(Point[] points) {
+    public static Tuple<Float,Pair> Bruteforce(List<Point> points) {
         float min = Float.MAX_VALUE;
         Pair minPoints = null;
-        int size = points.length;
-        Point[] ySorted = Arrays.stream(points).sorted((p1, p2) -> Float.compare(p1.y, p2.y)).toArray(Point[]::new);
+        int size = points.size();
+        List<Point> ySorted = points.stream().sorted((p1, p2) -> Float.compare(p1.y, p2.y)).collect(Collectors.toList());
         
         for (int i = 0; i < size; i++) {
-            Point p1 = ySorted[i];
-            for (int j = i + 1; j < Math.min(size, 4); j++) {
-                Point p2 = ySorted[j];
+            Point p1 = ySorted.get(i);
+            for (int j = i + 1; j < size; j++) {
+                Point p2 = ySorted.get(j);
                 if (i == j)
                     continue;
                 float dist = p1.Dist(p2);
@@ -142,22 +134,15 @@ public class Closest_Parallel_Pair {
         return new Tuple<Float,Pair>(min, minPoints);
     }
 
-    public static Point[] GetPoints(Kattio io, int n) {
-        long startTime = System.nanoTime();
-        Point[] points = new Point[n];
+    public static List<Point> GetPoints(Kattio io, int n) {
+        ArrayList<Point> points = new ArrayList<>(n);
         for (int i = 0; i < n; i++) {
-            points[i] = new Point((float)io.getDouble(), (float)io.getDouble());
-        }
-        long endTime = System.nanoTime();
-        long duration = (endTime - startTime);
-        if (DEBUG) {
-            System.out.println("Points parsing ms: " + duration / 1000000);
+            points.add(new Point((float)io.getDouble(), (float)io.getDouble()));
         }
         return points;
     }
 
-    public static Point[] SortByX(Point[] points) {
-        return Arrays.stream(points).sorted((p1, p2) -> Float.compare(p1.x, p2.x))
-                    .toArray(Point[]::new);
+    public static List<Point> SortByX(List<Point> points) {
+        return points.stream().sorted((p1, p2) -> Float.compare(p1.x, p2.x)).collect(Collectors.toList());
     }
 }
