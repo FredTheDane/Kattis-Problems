@@ -1,5 +1,6 @@
 import java.util.stream.*;
 import java.util.Collections.*;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.*;
 import java.util.function.*;
@@ -18,7 +19,6 @@ import java.io.OutputStream;
  */
 public class Closest_Pair2 {
     public static final int BRUTEFORCE_LIMIT = 50;
-    static final ExecutorService executorService = Executors.newWorkStealingPool(2);
 
     public static void main(String[] args) {
         Kattio io = new Kattio(System.in, System.out);
@@ -42,8 +42,8 @@ public class Closest_Pair2 {
             // All things are now sorted
 
             Points closestPoints = GetClosestPoints(xSorted, points);
-            var p1 = closestPoints.p1;
-            var p2 = closestPoints.p2;
+            Float[] p1 = closestPoints.p1;
+            Float[] p2 = closestPoints.p2;
 
             if (p1[0] < p2[0]) {
                 System.out.println(p1[0] + " " + p1[1] + " " + p2[0] + " " + p2[1]);
@@ -154,89 +154,5 @@ public class Closest_Pair2 {
 
     public static float Dist(Float[] p1, Float[] p2) {
         return (float) Math.sqrt((p2[0] - p1[0]) * (p2[0] - p1[0]) + (p2[1] - p1[1]) * (p2[1] - p1[1]));
-    }
-}
-
-class Points {
-    public Float[] p1;
-    public Float[] p2;
-    public Float dist;
-
-    public Points() {
-
-    }
-
-    public void SetPoints(Float[] p1, Float[] p2, Float dist) {
-        this.p1 = p1;
-        this.p2 = p2;
-        this.dist = dist;
-    }
-}
-
-class Tuple<X, Y> {
-    public final X x;
-    public final Y y;
-
-    public Tuple(X x, Y y) {
-        this.x = x;
-        this.y = y;
-    }
-}
-
-class Kattio extends PrintWriter {
-    public Kattio(InputStream i) {
-        super(new BufferedOutputStream(System.out));
-        r = new BufferedReader(new InputStreamReader(i));
-    }
-
-    public Kattio(InputStream i, OutputStream o) {
-        super(new BufferedOutputStream(o));
-        r = new BufferedReader(new InputStreamReader(i));
-    }
-
-    public boolean hasMoreTokens() {
-        return peekToken() != null;
-    }
-
-    public int getInt() {
-        return Integer.parseInt(nextToken());
-    }
-
-    public double getDouble() {
-        return Double.parseDouble(nextToken());
-    }
-
-    public long getLong() {
-        return Long.parseLong(nextToken());
-    }
-
-    public String getWord() {
-        return nextToken();
-    }
-
-    private BufferedReader r;
-    private String line;
-    private StringTokenizer st;
-    private String token;
-
-    private String peekToken() {
-        if (token == null)
-            try {
-                while (st == null || !st.hasMoreTokens()) {
-                    line = r.readLine();
-                    if (line == null)
-                        return null;
-                    st = new StringTokenizer(line);
-                }
-                token = st.nextToken();
-            } catch (IOException e) {
-            }
-        return token;
-    }
-
-    private String nextToken() {
-        String ans = peekToken();
-        token = null;
-        return ans;
     }
 }
